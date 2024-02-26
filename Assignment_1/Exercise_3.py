@@ -2,28 +2,46 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def euler_discritisation(dynamics, n_paths, N, T, S_0):
-    delta_t = T / N
-    paths = np.ones(shape=(n_paths, N+1)) * S_0
-    np.random.seed(0)
-    W = np.random.normal(0, delta_t, size=(n_paths, N))
+def discretisation(T, N, m, X_0=4.0, Y_0=1.0):
+    # construct base arrays for the X and Y values
+    X = np.ones(shape=(m, N))
+    X[:, 0] = X_0
+    Y = np.ones(shape=(m, N))
+    Y[:, 0] = Y_0
+    M = np.ones(shape=(1, N))
 
-    for i in range(1, N+1):
-        paths[:, i] = dynamics(paths[:, i-1], delta_t, W[:, i-1])
+    dt = T / N
+    sqrt_dt = np.sqrt(dt)
+    W = np.random.normal(0, 1, size=(m, N))
+    if m > 1:
+        W[:, 0] = (W[:, 0] - np.mean(W[:, 0])) / np.var(W[:, 0])
 
-    return paths[:, -1]
+    for i in range(1, N):
+        if m > 1:
+            W[:, i] = (W[:, i] - np.mean(W[:, i]))/np.var(W[:, i])
+        X[:, i] = X[:, i-1] + 0.04*X[:, i-1]*dt + 0.38*X[:, i-1]*sqrt_dt*(W[:, i] - W[:, i-1])
+        Y[:, i] = Y[:, i-1] + 0.1*Y[:, i-1]*dt + 0.15*Y[:, i-1]*sqrt_dt*(W[:, i] - W[:, i-1])
+        M[:, i] = M[:, i-1] + 0.06*M[:, i-1]*dt
+
+    return X, Y, M[0]
 
 
-n_paths = 100
-N = 1000
 T = 7
-r = 0.06
-Ks = [0, 0.05, 10]
+N = T * 1000
+m = 5000
+x, y, m = discretisation(T, N, m)
 
-dX = lambda X, dt, W: X + 0.04 * X * dt + 0.38 * X * W
-x_paths = euler_discritisation(dX, n_paths, N, T, 4.0)
-dY = lambda Y, dt, W: Y + 0.1 * Y * dt + 0.15 * Y * W
-y_paths = euler_discritisation(dY, n_paths, N, T, 1.0)
 
-for K in Ks:
-    print("K =", K, ":", np.exp(-r*T) * (K + np.mean(0.5*x_paths - 0.5*y_paths - K > 0)))
+def compute_V(X, Y, M, K, N):
+    V = np.zeros(N)
+    for i in range(N):
+        V[i] = np.mean(np.maximum((X[:, i] - Y[:, i]) / 2, K)) / M[i]
+    return V
+
+
+for k in [0, 0.05, 10]:
+    V = compute_V(x, y, m, k, N)
+    print(V[-1])
+    plt.plot(np.linspace(0, T, N), V, label="strike: " + str(round(k, 2)))
+plt.legend()
+plt.show()
