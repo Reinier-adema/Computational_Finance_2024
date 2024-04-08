@@ -4,7 +4,8 @@ from scipy.optimize import brentq
 
 
 # Function definition
-f = lambda x: (np.exp(x) + np.exp(-x)) / 2 - (2 * x)
+def f(x):
+    return (np.exp(x) + np.exp(-x)) / 2 - (2 * x)
 
 
 def combined_root_finder(func, interval, tol=1e-6, only_newton=False):
@@ -15,6 +16,7 @@ def combined_root_finder(func, interval, tol=1e-6, only_newton=False):
         x = (interval[0] + interval[1]) / 2.0
         delta = - func(x) / derivative(func, x)
         while abs(delta / x) > tol:
+            print(k, round(x, 7))
             x = x + delta
             if not only_newton:
                 if np.sum(x < interval) in [0, 2]:
@@ -25,10 +27,7 @@ def combined_root_finder(func, interval, tol=1e-6, only_newton=False):
                         x = (interval[0] + interval[1]) / 2.0
             delta = - func(x) / derivative(func, x)
             k += 1
-            print(k, delta)
         return x, k
-    else:
-        print("You should buy a lottery ticket!")
 
 
 # Combined root-finding
@@ -38,8 +37,32 @@ root_2, k2 = combined_root_finder(f, [0, 2])
 print('From combined root we have root = {0}'.format(root_1))
 print('From combined root we have root = {0}'.format(root_2))
 
+
 # Brent algorithm
-brent_1 = brentq(f, 2, 3, full_output=True)
-brent_2 = brentq(f, 0, 2, full_output=True)
-print('From Brent algorithm we have root = {0}'.format(brent_1[0]))
-print('From Brent algorithm we have root = {0}'.format(brent_2[0]))
+def brentq_with_print(f, a, b, target_tol=1e-6, maxiter=100):
+    tol = 1
+    target_iteration = 1
+    while tol > target_tol or target_iteration > maxiter:
+        iter = target_iteration + 1
+        # find tolerance such that the number of iterations equals the target iteration
+        while target_iteration != iter:
+            root = brentq(f, a, b, xtol=tol, full_output=True)
+            iter = root[1]['iterations']
+
+            if iter < target_iteration:
+                tol *= 0.9  # Adjust tolerance
+            elif iter > target_iteration:
+                tol *= 1/0.9
+
+        # print approximation in iteration target_iteration
+        print(target_iteration, round(root[0], 7))
+        target_iteration += 1
+
+        if abs(f(root[0])) < target_tol:
+            print("From Brent algorithm we have root = ", root[0])
+            return root[0]
+
+    print("Brent's method did not converge within the specified maximum number of iterations.")
+
+brentq_with_print(f, 0, 2)
+brentq_with_print(f, 2, 3)
